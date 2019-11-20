@@ -7,23 +7,27 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Date;
 
-import UI.Connect4GUI.Cell;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
 
+/**
+ * The Server class to run a connect4 game
+ * @author blake
+ *
+ */
 public class Connect4Server extends Application implements Connect4Constants{
 
 
-	
+	// The number of threads created(number of games)
 	 private static int threadNumber = 1;
 	 
-	@Override
+	/**
+	 * The starting point for the GUI
+	 */
 	public void start(Stage primaryStage) throws Exception {
 	    TextArea taLog = new TextArea();
 
@@ -38,6 +42,10 @@ public class Connect4Server extends Application implements Connect4Constants{
 	    
 	}
 	
+	/**
+	 * Checks for new clients looking to start a game
+	 * @param taLog the text area server logs will go to
+	 */
 	public static void initiateMatchMaking(TextArea taLog) {
 		// new thread to create a match while allowing the gui to run
 	    new Thread(()->{
@@ -91,7 +99,11 @@ public class Connect4Server extends Application implements Connect4Constants{
 	    }).start();
 	}
 
-
+	/**
+	 * The StartGame class which handles the game session for two clients(players)
+	 * @author blake
+	 *
+	 */
 	static class StartGame implements Runnable, Connect4Constants{
 		private Socket player1;
 		private Socket player2;
@@ -104,6 +116,11 @@ public class Connect4Server extends Application implements Connect4Constants{
 	    // declaration for connect4 game class
 	    private Connect4 game;
 	    
+	    /**
+	     * The constructor to start a game object
+	     * @param player1
+	     * @param player2
+	     */
 	    public StartGame(Socket player1, Socket player2) {
 	    	this.player1 = player1;
 	    	this.player2 = player2;
@@ -144,24 +161,35 @@ public class Connect4Server extends Application implements Connect4Constants{
 						col = fromPlayer1.readInt();
 						// row = the row of the successful move
 						row = game.playMove(col); 
-						System.out.println("run(): "+ col);
 						if(row > -1) {
+							// tells player 1 move was valid
+							toPlayer1.writeInt(VALID);
+							// sends player 1 the row
+							toPlayer1.writeInt(row);
 							if(game.checkWin()) {
 					            toPlayer1.writeInt(PLAYER1_WON);
 					            toPlayer2.writeInt(PLAYER1_WON);
 					            sendMove(toPlayer2, col-1, row);
+					            // close all sockets
+					            fromPlayer1.close();
+								toPlayer1.close();
+								fromPlayer2.close();
+								toPlayer2.close();
 					            break; // Break the loop
 							}if(game.checkTie()) {
 					            toPlayer1.writeInt(TIE);
 					            toPlayer2.writeInt(TIE);
 					            sendMove(toPlayer2, col-1, row);
+					            // close all sockets
+					            fromPlayer1.close();
+								toPlayer1.close();
+								fromPlayer2.close();
+								toPlayer2.close();
+					            break;
 							}else {
+								// change the turn of the game
 								game.changeTurn();
-								// tells player 1 move was valid
-								toPlayer1.writeInt(VALID);
 								valid = true;
-								// sends player 1 the row
-								toPlayer1.writeInt(row);
 								// send player 2 the code to make their move
 								toPlayer2.writeInt(CONTINUE);
 								sendMove(toPlayer2, col-1, row);
@@ -183,7 +211,11 @@ public class Connect4Server extends Application implements Connect4Constants{
 						// row = the row of the successful move
 						row = game.playMove(col); 
 						if(row > -1) {
-							if(game.checkWin()) {
+							// tells player 2 move was valid
+							toPlayer2.writeInt(VALID);	
+							// sends player 1 the row
+							toPlayer2.writeInt(row);
+							if(game.checkWin()) { // if player 2 wins
 					            toPlayer1.writeInt(PLAYER2_WON);
 					            toPlayer2.writeInt(PLAYER2_WON);
 					            sendMove(toPlayer1, col-1, row);
@@ -193,9 +225,8 @@ public class Connect4Server extends Application implements Connect4Constants{
 					            toPlayer2.writeInt(TIE);
 					            sendMove(toPlayer1, col-1, row);
 							}else {
+								// change the turn of the game
 								game.changeTurn();
-								// tells player 2 move was valid
-								toPlayer2.writeInt(VALID);	
 								valid = true;
 								// send player 1 the code to make their move
 								toPlayer1.writeInt(CONTINUE);
@@ -210,14 +241,24 @@ public class Connect4Server extends Application implements Connect4Constants{
 					
 				}// ends while loop
 			}catch(IOException ex) {
-				ex.printStackTrace();
+				System.out.println("Stream is not connected! Check that the server is running along with two clients!");
 			}
 		}// ends run method
 		
-		private void sendMove(DataOutputStream toPlayer, int col, int row) throws IOException {
-			System.out.println("SendMOVE(): "+ col);
-			toPlayer.writeInt(col);
-			toPlayer.writeInt(row);
+		/**
+		 * Sends a move to the client so the client can update its display
+		 * @param toPlayer Which client to send the update to
+		 * @param col the col of the play
+		 * @param row the row of the play
+		 * @throws IOException Exception if the stream is not connected
+		 */
+		private void sendMove(DataOutputStream toPlayer, int col, int row) {
+			try {
+				toPlayer.writeInt(col);
+				toPlayer.writeInt(row);
+			} catch (IOException e) {
+				System.out.println("Stream is not connected! Check that the server is running along with two clients!");
+			}
 		}
 		
 		

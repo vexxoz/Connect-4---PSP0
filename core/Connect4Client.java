@@ -5,7 +5,6 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 
-import UI.Connect4GUI.Cell;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
@@ -22,6 +21,11 @@ import javafx.scene.shape.Ellipse;
 import javafx.scene.shape.Line;
 import javafx.stage.Stage;
 
+/**
+ * The client class used to connect to a connect4 server
+ * @author blake
+ *
+ */
 public class Connect4Client extends Application implements Connect4Constants{
 
 	private static Cell[][] cell = new Cell[7][6];
@@ -54,7 +58,9 @@ public class Connect4Client extends Application implements Connect4Constants{
 	  private int rowSel;
 	  private int colSel;	  
 	  
-	@Override
+	/**
+	 * The starting point for the JavaFX GUI
+	 */
 	public void start(Stage primaryStage) {
 		
 		//declare all buttons
@@ -72,35 +78,36 @@ public class Connect4Client extends Application implements Connect4Constants{
 	        
 			@Override
 			public void handle(ActionEvent event) {
-				if(event.getSource().equals(col1)) {
-					colSel = 1;
-					waiting = false;
+				if(myTurn) {
+					if(event.getSource().equals(col1)) {
+						colSel = 1;
+						waiting = false;
+					}
+					if(event.getSource().equals(col2)) {
+						colSel = 2;
+						waiting = false;
+					}
+					if(event.getSource().equals(col3)) {
+						colSel = 3;
+						waiting = false;
+					}
+					if(event.getSource().equals(col4)) {
+						colSel = 4;
+						waiting = false;
+					}
+					if(event.getSource().equals(col5)) {
+						colSel = 5;
+						waiting = false;
+					}
+					if(event.getSource().equals(col6)) {
+						colSel = 6;
+						waiting = false;
+					}
+					if(event.getSource().equals(col7)) {
+						colSel = 7;
+						waiting = false;
+					}
 				}
-				if(event.getSource().equals(col2)) {
-					colSel = 2;
-					waiting = false;
-				}
-				if(event.getSource().equals(col3)) {
-					colSel = 3;
-					waiting = false;
-				}
-				if(event.getSource().equals(col4)) {
-					colSel = 4;
-					waiting = false;
-				}
-				if(event.getSource().equals(col5)) {
-					colSel = 5;
-					waiting = false;
-				}
-				if(event.getSource().equals(col6)) {
-					colSel = 6;
-					waiting = false;
-				}
-				if(event.getSource().equals(col7)) {
-					colSel = 7;
-					waiting = false;
-				}
-				
 			}
 			
 		}
@@ -150,6 +157,9 @@ public class Connect4Client extends Application implements Connect4Constants{
 	    connectToServer();
 	}
 	
+	/**
+	 * Tries to connect to the server and controls the operations of the client
+	 */
 	private void connectToServer() {
 		try {
 			// Create a socket to connect to the server
@@ -203,7 +213,7 @@ public class Connect4Client extends Application implements Connect4Constants{
 	            while(myTurn) { // while move is not valid
 		            waitForMove(); // Wait for player 1 to move
 		            sendMove(); // Send player 1's move to the server
-		            verifyMove();
+		            verifyMove(); // make sure the move is valid
 	            }
 	            receiveInfoFromServer(); // Receive info from the server
 	          }
@@ -212,7 +222,7 @@ public class Connect4Client extends Application implements Connect4Constants{
 	            while(myTurn) {
 		            waitForMove(); // Wait for player 2 to move
 		            sendMove(); // Send player 2's move to the server
-		            verifyMove();
+		            verifyMove(); // // make sure the move is valid
 	            }
 	          }
 	        }
@@ -223,9 +233,10 @@ public class Connect4Client extends Application implements Connect4Constants{
 	    }).start();		
 	}
 	
-	  /** Receive info from the server */
-	  private void receiveInfoFromServer() throws IOException {
-	    // Receive game status
+	  /** Recieves the other clients play from the server and checks if a win/tie */
+	  private void receiveInfoFromServer()  {
+	    try {
+		// Receive game status
 	    int status = fromServer.readInt();
 
 	    if (status == PLAYER1_WON) {
@@ -233,11 +244,15 @@ public class Connect4Client extends Application implements Connect4Constants{
 	      continueToPlay = false;
 	      if (myToken == 'X') {
 	        Platform.runLater(() -> lblStatus.setText("I won! (X)"));
+	        fromServer.close();
+		      toServer.close();
 	      }
 	      else if (myToken == 'O') {
 	        Platform.runLater(() -> 
 	          lblStatus.setText("Player 1 (X) has won!"));
 	        receiveMove();
+	        fromServer.close();
+		      toServer.close();
 	      }
 	    }
 	    else if (status == PLAYER2_WON) {
@@ -245,11 +260,15 @@ public class Connect4Client extends Application implements Connect4Constants{
 	      continueToPlay = false;
 	      if (myToken == 'O') {
 	        Platform.runLater(() -> lblStatus.setText("I won! (O)"));
+	        fromServer.close();
+		      toServer.close();
 	      }
 	      else if (myToken == 'X') {
 	        Platform.runLater(() -> 
 	          lblStatus.setText("Player 2 (O) has won!"));
 	        receiveMove();
+	        fromServer.close();
+		      toServer.close();
 	      }
 	    }
 	    else if (status == TIE) {
@@ -257,7 +276,8 @@ public class Connect4Client extends Application implements Connect4Constants{
 	      continueToPlay = false;
 	      Platform.runLater(() -> 
 	        lblStatus.setText("Game is over, no winner!"));
-
+	      fromServer.close();
+	      toServer.close();
 	      if (myToken == 'O') {
 	        receiveMove();
 	      }
@@ -267,14 +287,24 @@ public class Connect4Client extends Application implements Connect4Constants{
 	      Platform.runLater(() -> lblStatus.setText("My turn"));
 	      myTurn = true; // It is my turn
 	    }
+	    }catch (IOException e) {
+	    	System.out.println("Stream is not connected! Check that the server is running along with two clients!");
+		}
+
 	  }	
 	
-	  private void receiveMove() throws IOException {
+	  /**
+	   * Receives the move coords from the server
+	   */
+	  private void receiveMove() {
+		  try {
 		    // Get the other player's move
 		    int col = fromServer.readInt();
-		    System.out.println("recieveMove(): "+ col);
 		    int row = fromServer.readInt();
 		    Platform.runLater(() -> cell[col][row].setToken(otherToken));
+		  }catch (IOException e) {
+		    	System.out.println("Stream is not connected! Check that the server is running along with two clients!");
+			}
 		  }
 
 	
@@ -287,29 +317,56 @@ public class Connect4Client extends Application implements Connect4Constants{
 	    waiting = true;
 	  }
 	  
-	  private void sendMove() throws IOException {
+	  /**
+	   * Sends the move the client has made to the server
+	   */
+	  private void sendMove() {
+		  try {
 		  toServer.writeInt(colSel); // Send the selected col
+		  }catch (IOException e) {
+		    	System.out.println("Stream is not connected! Check that the server is running along with two clients!");
+		  }
 	  }
 	
-	  private void verifyMove() throws IOException {
+	  /**
+	   * Verify the move was a valid move with the server
+	   */
+	  private void verifyMove() {
+		  try {
+		  // get input from server of status
 		  int valid = fromServer.readInt();
+		  // if status is valid move
 		  if(valid == VALID) {
+			  // get the row from the server
 			  rowSel = fromServer.readInt();
+			  // set token of place in array to value of players icon
 			  Platform.runLater(() -> cell[colSel-1][rowSel].setToken(myToken));
+			  // change my turn to false
 			  myTurn = false;
 			  Platform.runLater(() -> lblStatus.setText("Waiting for the other player to move"));
 		  }else {
+			  Platform.runLater(() -> lblStatus.setText("Row is full please try another one!"));
 			  myTurn = true;
 			  waiting = true;
 		  }
+		  }catch (IOException e) {
+		    	System.out.println("Stream is not connected! Check that the server is running along with two clients!");
+		  }
 	  }
 	   
-	  
+	  /**
+	   * The class to hold the visuals for the game board
+	   * @author Ser216
+	   *
+	   */
 	  public class Cell extends Pane {
 
 		    // Token used for this cell
 		    private char token = ' ';
 
+		    /**
+		     * Constructor for the cell class
+		     */
 		    public Cell() {
 		      this.setPrefSize(2000, 2000); // What happens without this?
 		      setStyle("-fx-border-color: black"); // Set cell's border 
@@ -326,6 +383,9 @@ public class Connect4Client extends Application implements Connect4Constants{
 		      repaint();
 		    }
 
+		    /**
+		     * Fills in the cell with an X or O
+		     */
 		    protected void repaint() {
 		      if (token == 'X') {
 		        Line line1 = new Line(10, 10, 
